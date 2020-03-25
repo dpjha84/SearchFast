@@ -1,0 +1,15 @@
+E:\DP\Code\SearchFast\SearchFast\obj\Debug\SearchFast.csprojAssemblyReference.cache
+E:\DP\Code\SearchFast\SearchFast\obj\Debug\MainWindow.g.cs
+E:\DP\Code\SearchFast\SearchFast\obj\Debug\App.g.cs
+E:\DP\Code\SearchFast\SearchFast\obj\Debug\SearchFast_MarkupCompile.cache
+E:\DP\Code\SearchFast\SearchFast\obj\Debug\SearchFast_MarkupCompile.lref
+E:\DP\Code\SearchFast\SearchFast\bin\Debug\SearchFast.exe.config
+E:\DP\Code\SearchFast\SearchFast\bin\Debug\SearchFast.exe
+E:\DP\Code\SearchFast\SearchFast\bin\Debug\SearchFast.pdb
+E:\DP\Code\SearchFast\SearchFast\obj\Debug\MainWindow.baml
+E:\DP\Code\SearchFast\SearchFast\obj\Debug\SearchFast.g.resources
+E:\DP\Code\SearchFast\SearchFast\obj\Debug\SearchFast.Properties.Resources.resources
+E:\DP\Code\SearchFast\SearchFast\obj\Debug\SearchFast.csproj.GenerateResource.cache
+E:\DP\Code\SearchFast\SearchFast\obj\Debug\SearchFast.csproj.CoreCompileInputs.cache
+E:\DP\Code\SearchFast\SearchFast\obj\Debug\SearchFast.exe
+E:\DP\Code\SearchFast\SearchFast\obj\Debug\SearchFast.pdb
