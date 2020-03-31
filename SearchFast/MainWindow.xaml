@@ -11,33 +11,34 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition/>
         </Grid.RowDefinitions>
-        <GroupBox Margin="10" Grid.Row="0" BorderBrush="Gray" BorderThickness="1">
-        <StackPanel Margin="5">
-            <StackPanel Orientation="Horizontal" Margin="5">
-                <Label Name="lblFileName" Content="File Name:" Width="100" />
-                <TextBox x:Name="textBox" Text="*.txt" Width="400" Margin="10,0,0,0" />
+        <Border Margin="10" Grid.Row="0" BorderBrush="Gray" Background="LightGray" BorderThickness="1">
+            <StackPanel Margin="5">
+                <StackPanel Orientation="Horizontal" Margin="5">
+                    <Label Name="lblFileName" Content="File Name:" Width="100" />
+                    <TextBox x:Name="textBox" Text="*.txt" Width="400" Margin="10,0,0,0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="5">
+                    <Label Name="lblContainingText" Content="Containing Text:" Width="100" />
+                    <TextBox x:Name="textBox1" Text="Test" Width="400" Margin="10,0,0,0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="5">
+                    <Label Name="lblLookIn" Content="Look in:" Width="100" />
+                    <TextBox x:Name="textBox2" Text="E:\Test" Width="400" Margin="10,0,0,0" />
+                    <Button Name="btnOpenFolder" Click="btnOpenFolder_Click" Margin="10,0,0,0">Browse...</Button>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="5">
+                    <Button x:Name="button" IsDefault="True" Content="Start" Click="button_Click" Margin="30,0,0,0" Width="50"/>
+                    <Button x:Name="btnStop" Content="Stop" Click="btnStop_Click" Margin="10,0,0,0" Width="50"/>
+                    <TextBlock x:Name="statusLebel" Text="" FontWeight="Bold" Foreground="Green" Margin="30,0,0,0"/>
+                    <TextBlock x:Name="timeTakenLebel" FontWeight="Bold" Text="" Foreground="Green" Margin="30,0,0,0"/>
+                </StackPanel>
             </StackPanel>
-            <StackPanel Orientation="Horizontal" Margin="5">
-                <Label Name="lblContainingText" Content="Containing Text:" Width="100" />
-                <TextBox x:Name="textBox1" Text="Test" Width="400" Margin="10,0,0,0" />
-            </StackPanel>
-            <StackPanel Orientation="Horizontal" Margin="5">
-                <Label Name="lblLookIn" Content="Look in:" Width="100" />
-                <TextBox x:Name="textBox2" Text="E:\" Width="400" Margin="10,0,0,0" />
-            </StackPanel>
-            <StackPanel Orientation="Horizontal" Margin="5">
-                <Button x:Name="button" Content="Start" Click="button_Click" Margin="30,0,0,0" Width="50"/>
-                <Button x:Name="btnStop" Content="Stop" Click="btnStop_Click" Margin="10,0,0,0" Width="50"/>
-                <TextBlock x:Name="statusLebel" Text="" FontWeight="Bold" Foreground="Green" Margin="30,0,0,0"/>
-                <TextBlock x:Name="timeTakenLebel" FontWeight="Bold" Text="" Foreground="Green" Margin="30,0,0,0"/>
-            </StackPanel>
-        </StackPanel>
-        </GroupBox>
+        </Border>
         <Grid Name="grid1" Background="Transparent" Grid.Row="1">
             <ListView Margin="10" Name="lvUsers">
                 <ListView.View>
                     <GridView>
-                        <GridViewColumn Header="Name" Width="120" DisplayMemberBinding="{Binding Name}" />
+                        <GridViewColumn Header="Name" Width="250" DisplayMemberBinding="{Binding Name}" />
                         <GridViewColumn Header="Location" Width="500" DisplayMemberBinding="{Binding DirectoryName}" />
                         <GridViewColumn Header="Size" Width="50" DisplayMemberBinding="{Binding Length}" />
                     </GridView>

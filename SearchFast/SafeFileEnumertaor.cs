@@ -30,23 +30,26 @@ namespace SearchFast
             }
         }
 
-        public static IEnumerable<string> EnumerateFiles(string path, SearchOption searchOpt, HashSet<string> extList, List<string> exc, int minSize)
+        public static IEnumerable<string> EnumerateFiles(string path, SearchOption searchOpt, HashSet<string> extList, List<string> exc, int minSize, HashSet<string> fileNames)
         {
             try
             {
                 var dirFiles = Enumerable.Empty<string>();
                 var dirName = Path.GetFileName(path);
-                if (exc.Contains(path.ToLowerInvariant()) || exc.Where((x) => x.StartsWith(path.ToLowerInvariant() + "\\")).ToList().Count > 0 ||
-                    (!string.IsNullOrWhiteSpace(dirName) && dirName.StartsWith("$")))
+                if (exc.Contains(path.ToLowerInvariant())
+                    || exc.Where((x) => x.StartsWith(path.ToLowerInvariant() + "\\")).ToList().Count > 0
+                    //|| (!string.IsNullOrWhiteSpace(dirName) && dirName.StartsWith("$"))
+                    )
                     return dirFiles;
                 if (searchOpt == SearchOption.AllDirectories)
                 {
                     dirFiles = Directory.EnumerateDirectories(path)
-                                        .SelectMany(x => EnumerateFiles(x, searchOpt, extList, exc, minSize));
+                                        .SelectMany(x => EnumerateFiles(x, searchOpt, extList, exc, minSize, fileNames));
                 }
                 return dirFiles.Concat(Directory.EnumerateFiles(path, "*.*")
-                    .Where(file => extList.Any(x => file.EndsWith(x, StringComparison.OrdinalIgnoreCase))
-                        && new FileInfo(file).Length / (1024 * 1024) >= minSize));
+                    .Where(file => (MatchingExtension(file, extList)
+                        && new FileInfo(file).Length / (1024 * 1024) >= minSize)
+                        || fileNames.Contains(Path.GetFileName(file), StringComparer.OrdinalIgnoreCase)));
             }
             catch (UnauthorizedAccessException ex)
             {
@@ -55,7 +58,11 @@ namespace SearchFast
             catch (PathTooLongException ex)
             {
                 return Enumerable.Empty<string>();
-            }
+            }            
+        }
+        static bool MatchingExtension(string file, HashSet<string> extList)
+        {
+            return extList.Count == 0 ? true : extList.Any(x => file.EndsWith(x, StringComparison.OrdinalIgnoreCase));
         }
     }
 }
