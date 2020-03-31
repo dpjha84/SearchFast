@@ -22,14 +22,47 @@ namespace SearchFast
         string fileNames = null;
         bool workStarted = false;
         ObservableCollection<FileInfo> fileList = new ObservableCollection<FileInfo>();
+        ObservableCollection<FileSearchResult> fileDetailList = new ObservableCollection<FileSearchResult>();
         ManualResetEventSlim stopEvent = new ManualResetEventSlim(false);
 
         public MainWindow()
         {
             InitializeComponent();
             lvUsers.ItemsSource = fileList;
+            lvUsers1.ItemsSource = fileDetailList;
             lvUsers.MouseDoubleClick += LvUsers_MouseDoubleClick;
-            //button_Click(null, null);
+            lvUsers.SelectionChanged += LvUsers_SelectionChanged;
+        }
+
+        private void LvUsers_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            fileDetailList.Clear();
+
+            //List<Person> listPerson = new List<Person>();
+            //listPerson.Add(new Person("John", "Doe"));
+            //listPerson.Add(new Person("James", "Test"));
+            //listPerson.Add(new Person("Tester", "Black"));
+            //listPerson.Add(new Person("Joan", "Down"));
+            //listPerson.Add(new Person("Cole", "Wu"));
+            //listPerson.Add(new Person("Test", "Liu"));
+            //listPerson.Add(new Person("Jack", "Zhao"));
+            //listPerson.Add(new Person("Coach", "Tang"));
+            //listPerson.Add(new Person("Rose", "Chou"));
+            //lvUsers1.ItemsSource = listPerson;
+
+            var fileInfo = lvUsers.SelectedItem as FileInfo;
+            if (fileInfo != null)
+            {
+                if (fileInfo.Name.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0)
+                    fileDetailList.Add(new FileSearchResult { Text = fileInfo.FullName });
+                int count = 0;
+                foreach (var line in File.ReadAllLines(fileInfo.FullName))
+                {
+                    count++;
+                    if (line.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0)
+                        fileDetailList.Add(new FileSearchResult { LineNumber = count.ToString(), Text = line });
+                }
+            }
         }
 
         private void LvUsers_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
@@ -121,6 +154,26 @@ namespace SearchFast
                 if(result == System.Windows.Forms.DialogResult.OK)
                     textBox2.Text = dialog.SelectedPath;
             }
+        }
+    }
+
+    public class FileSearchResult
+    {
+        public string LineNumber { get; set; }
+
+        public string Text { get; set; }
+    }
+
+    class Person
+    {
+        public string FirstName { get; set; }
+
+        public string LastName { get; set; }
+
+        public Person(string fname, string lname)
+        {
+            FirstName = fname;
+            LastName = lname;
         }
     }
 }

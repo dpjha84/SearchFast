@@ -11,7 +11,7 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition/>
         </Grid.RowDefinitions>
-        <Border Margin="10" Grid.Row="0" BorderBrush="Gray" Background="LightGray" BorderThickness="1">
+        <Border Margin="10,0,10,0" Grid.Row="0" BorderBrush="Gray" Background="LightGray" BorderThickness="1">
             <StackPanel Margin="5">
                 <StackPanel Orientation="Horizontal" Margin="5">
                     <Label Name="lblFileName" Content="File Name:" Width="100" />
@@ -34,16 +34,34 @@
                 </StackPanel>
             </StackPanel>
         </Border>
-        <Grid Name="grid1" Background="Transparent" Grid.Row="1">
-            <ListView Margin="10" Name="lvUsers">
-                <ListView.View>
-                    <GridView>
-                        <GridViewColumn Header="Name" Width="250" DisplayMemberBinding="{Binding Name}" />
-                        <GridViewColumn Header="Location" Width="500" DisplayMemberBinding="{Binding DirectoryName}" />
-                        <GridViewColumn Header="Size" Width="50" DisplayMemberBinding="{Binding Length}" />
-                    </GridView>
-                </ListView.View>
-            </ListView>
+        <Grid Margin="10,5,10,5" Name="grid1" Background="Transparent" Grid.Row="1">
+            <StackPanel Orientation="Horizontal">
+                <ListView Name="lvUsers">
+                    <ListView.View>
+                        <GridView>
+                            <GridViewColumn Header="Name" Width="250" DisplayMemberBinding="{Binding Name}" />
+                            <GridViewColumn Header="Location" Width="500" DisplayMemberBinding="{Binding DirectoryName}" />
+                            <GridViewColumn Header="Size" Width="50" DisplayMemberBinding="{Binding Length}" />
+                        </GridView>
+                    </ListView.View>
+                </ListView>
+                <ListView Margin="5,0,0,0" Name="lvUsers1">
+                    <ListView.View>
+
+                        <GridView>
+                            <GridViewColumn Header="Line #" Width="50" DisplayMemberBinding="{Binding LineNumber}" />
+                            <GridViewColumn Width="600">
+                                <GridViewColumnHeader Content="Text"/>
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <local:HighlightTextBlock Text="{Binding Path=Text}" HighlightPhrase="{Binding ElementName=textBox1, Path=Text}" HighlightBrush="Orange" />
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                        </GridView>
+                    </ListView.View>
+                </ListView>
+            </StackPanel>
         </Grid>
     </Grid>
 </Window>
