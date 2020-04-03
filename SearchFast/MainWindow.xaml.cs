@@ -11,6 +11,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Forms;
 using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Threading;
 
 namespace SearchFast
@@ -20,10 +21,12 @@ namespace SearchFast
         string dirName = null;
         string searchText = null;
         string fileNames = null;
-        bool workStarted = false;
+        bool? matchCase = false;
         ObservableCollection<FileInfo> fileList = new ObservableCollection<FileInfo>();
         ObservableCollection<FileSearchResult> fileDetailList = new ObservableCollection<FileSearchResult>();
+        ManualResetEventSlim pauseEvent = new ManualResetEventSlim(false);
         ManualResetEventSlim stopEvent = new ManualResetEventSlim(false);
+        ManualResetEventSlim startEvent = new ManualResetEventSlim(false);
 
         public MainWindow()
         {
@@ -73,30 +76,73 @@ namespace SearchFast
                 Process.Start(fileInfo.FullName);
             }
         }
-
+        static Guid currentRunId;
         private void button_Click(object sender, RoutedEventArgs e)
         {
             fileNames = textBox.Text;
             dirName = textBox2.Text;
             searchText = textBox1.Text;
-            statusLebel.Text = $"Searching...";
-            stopEvent.Set();
-            if (!workStarted)
+            matchCase = chkMatchcase.IsChecked;
+            timeTakenLebel.Text = "";
+            if (string.IsNullOrWhiteSpace(dirName))
             {
-                Task.Run(() => DoWork());
-                workStarted = true;
+                statusLebel.Text = "Look in directory is required.";
+                statusLebel.Foreground = new SolidColorBrush(Colors.Red);
+                return;
+            }
+            statusLebel.Foreground = new SolidColorBrush(Colors.Green);
+            statusLebel.Text = "Searching...";
+
+            if (startEvent.IsSet && !pauseEvent.IsSet)
+            {
+                button.Content = "Resume";
+                statusLebel.Text = "Search paused";
+                stopEvent.Reset();
+                startEvent.Reset();
+                pauseEvent.Set();
+                
+            }
+            else if (!startEvent.IsSet)
+            {
+                button.Content = "Pause";
+                stopEvent.Reset();
+                startEvent.Set();
+                if (!pauseEvent.IsSet)
+                {
+                    fileList.Clear();
+                    currentRunId = Guid.NewGuid();
+                    Task.Run(() => DoWork(currentRunId));
+                }
+                pauseEvent.Reset();                
             }
         }
 
         private void btnStop_Click(object sender, RoutedEventArgs e)
         {
-            statusLebel.Text = $"Stopped";
-            stopEvent.Reset();
+            statusLebel.Text = "Search canceled";
+            timeTakenLebel.Text = "";
+            UpdateStopEvents();
         }
 
-        private void DoWork()
+        void UpdateStopEvents()
         {
-            Dispatcher.Invoke(() => { fileList.Clear(); });
+            stopEvent.Set();
+            if (!startEvent.IsSet)
+                startEvent.Set();            
+            startEvent.Reset();
+            pauseEvent.Reset();
+            
+            Dispatcher.Invoke(() =>
+            {
+                button.Content = "Start";
+                //label.Content = "0";
+            }
+            );
+        }
+
+        private void DoWork(Guid runId)
+        {
+            if (!runId.Equals(currentRunId)) return;
             int sz = 0;
             var exclusionList = new List<string>();
             var extList = new HashSet<string>();
@@ -107,43 +153,90 @@ namespace SearchFast
                 var trimmedFileType = fileType.Trim();
                 if (trimmedFileType == "*.*")
                 {
-                    extList.Clear();
+                    extList.Add(".*");
                     break;
                 }
                 else if (trimmedFileType.StartsWith("*."))
                 {
-                    extList.Add(trimmedFileType.Substring(2));
+                    extList.Add(trimmedFileType.Substring(1));
                 }
                 else
                     staticFiles.Add(trimmedFileType);
             }
+            if(extList.Count == 0 && staticFiles.Count == 0) extList.Add(".*");
             Stopwatch sw = new Stopwatch();
             sw.Start();
-            Parallel.ForEach(SafeFileEnumerator.EnumerateFiles(dirName, SearchOption.AllDirectories, extList, exclusionList, sz, staticFiles), new ParallelOptions { MaxDegreeOfParallelism = -1 }, file1 =>
+            //var files = SafeFileEnumerator.EnumerateFiles(dirName, SearchOption.AllDirectories, extList, exclusionList, sz, staticFiles);
+            //Parallel.ForEach(files, new ParallelOptions { MaxDegreeOfParallelism = 4 }, (file1, state) =>
+            foreach (var file1 in SafeFileEnumerator.EnumerateFiles(dirName, SearchOption.AllDirectories, extList, exclusionList, sz, staticFiles))
             {
-                stopEvent.Wait();
+                if (!runId.Equals(currentRunId)) return;//state.Stop();
+                startEvent.Wait();
+                if (stopEvent.IsSet) return;//state.Stop();
                 try
                 {
-                    if (Path.GetFileName(file1).IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0
-                    || File.ReadAllText(file1).IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0)
+                    if (matchCase.Value)
                     {
-                        Dispatcher.Invoke(() =>
-                        {                            
-                            fileList.Add(new FileInfo(file1));
-                        });
+                        if (Path.GetFileName(file1).Contains(searchText)) AddToFileList(runId, file1);
+                    }
+                    else
+                    {
+                        if (Path.GetFileName(file1).IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0) AddToFileList(runId, file1);
+                    }
+
+
+                    foreach (var line in File.ReadLines(file1))
+                    {
+                        if (!runId.Equals(currentRunId)) return;//state.Stop();
+                        startEvent.Wait();
+                        if (stopEvent.IsSet) return;// state.Stop();
+                        if (matchCase.Value)
+                        {
+                            if (line.Contains(searchText))
+                            {
+                                AddToFileList(runId, file1);
+                                break;
+                            }
+                        }
+                        else
+                        {
+                            if (line.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0)
+                            {
+                                AddToFileList(runId, file1);
+                                break;
+                            }
+                        }
                     }
                 }
-                catch (IOException)
+                catch (IOException ex)
                 {
                 }
-                catch (UnauthorizedAccessException)
+                catch (UnauthorizedAccessException ex)
                 {
                 }
             }
-            );
-            Dispatcher.Invoke(() => { timeTakenLebel.Text = $"Time: {sw.Elapsed.TotalSeconds}s"; });
-            workStarted = false;
-            Dispatcher.Invoke(() => statusLebel.Text = $"{fileList.Count} record(s).");
+            //);
+            if (!stopEvent.IsSet)
+            {
+                Dispatcher.Invoke(() => { timeTakenLebel.Text = $"Time: {sw.Elapsed.TotalSeconds}s"; });
+                Dispatcher.Invoke(() => statusLebel.Text = $"{fileList.Count} record(s).");
+            }
+            UpdateStopEvents();
+        }
+
+        private void AddToFileList(Guid runId, string file)
+        {
+            if (runId.Equals(currentRunId))
+            {
+                var file1 = new FileInfo(file);
+                Dispatcher.Invoke(() =>
+                {
+                    if (runId.Equals(currentRunId))
+                    {
+                        fileList.Add(file1);
+                    }
+                });
+            }
         }
 
         private void btnOpenFolder_Click(object sender, RoutedEventArgs e)

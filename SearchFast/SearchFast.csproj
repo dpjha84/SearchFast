@@ -56,6 +56,7 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="FileReader.cs" />
     <Compile Include="HighlightTextBlock.cs" />
     <Compile Include="SafeFileEnumertaor.cs" />
     <Page Include="MainWindow.xaml">

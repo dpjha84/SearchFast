@@ -58,11 +58,15 @@ namespace SearchFast
             catch (PathTooLongException ex)
             {
                 return Enumerable.Empty<string>();
-            }            
+            }
+            catch (IOException ex)
+            {
+                return Enumerable.Empty<string>();
+            }
         }
         static bool MatchingExtension(string file, HashSet<string> extList)
         {
-            return extList.Count == 0 ? true : extList.Any(x => file.EndsWith(x, StringComparison.OrdinalIgnoreCase));
+            return extList.Count == 0 ? false : extList.Contains(".*") ? true : extList.Any(x => file.EndsWith(x, StringComparison.OrdinalIgnoreCase));
         }
     }
 }

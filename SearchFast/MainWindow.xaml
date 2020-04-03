@@ -15,42 +15,50 @@
             <StackPanel Margin="5">
                 <StackPanel Orientation="Horizontal" Margin="5">
                     <Label Name="lblFileName" Content="File Name:" Width="100" />
-                    <TextBox x:Name="textBox" Text="*.txt" Width="400" Margin="10,0,0,0" />
+                    <TextBox x:Name="textBox" Text="" Width="400" Margin="10,0,0,0" />
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Margin="5">
                     <Label Name="lblContainingText" Content="Containing Text:" Width="100" />
                     <TextBox x:Name="textBox1" Text="Test" Width="400" Margin="10,0,0,0" />
+                    <Label Name="lblMatchCase" Content="Match case" />
+                    <CheckBox x:Name="chkMatchcase" Width="400" VerticalAlignment="Center" />
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Margin="5">
                     <Label Name="lblLookIn" Content="Look in:" Width="100" />
-                    <TextBox x:Name="textBox2" Text="E:\Test" Width="400" Margin="10,0,0,0" />
+                    <TextBox x:Name="textBox2" Text="C:\" Width="400" Margin="10,0,0,0" />
                     <Button Name="btnOpenFolder" Click="btnOpenFolder_Click" Margin="10,0,0,0">Browse...</Button>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Margin="5">
                     <Button x:Name="button" IsDefault="True" Content="Start" Click="button_Click" Margin="30,0,0,0" Width="50"/>
-                    <Button x:Name="btnStop" Content="Stop" Click="btnStop_Click" Margin="10,0,0,0" Width="50"/>
+                    <Button x:Name="btnStop" Content="Cancel" Click="btnStop_Click" Margin="10,0,0,0" Width="50"/>
                     <TextBlock x:Name="statusLebel" Text="" FontWeight="Bold" Foreground="Green" Margin="30,0,0,0"/>
                     <TextBlock x:Name="timeTakenLebel" FontWeight="Bold" Text="" Foreground="Green" Margin="30,0,0,0"/>
                 </StackPanel>
             </StackPanel>
         </Border>
         <Grid Margin="10,5,10,5" Name="grid1" Background="Transparent" Grid.Row="1">
-            <StackPanel Orientation="Horizontal">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Grid Grid.Column="0">
                 <ListView Name="lvUsers">
                     <ListView.View>
                         <GridView>
-                            <GridViewColumn Header="Name" Width="250" DisplayMemberBinding="{Binding Name}" />
-                            <GridViewColumn Header="Location" Width="500" DisplayMemberBinding="{Binding DirectoryName}" />
+                            <GridViewColumn Header="Name" Width="200" DisplayMemberBinding="{Binding Name}" />
+                            <GridViewColumn Header="Location" Width="400" DisplayMemberBinding="{Binding DirectoryName}" />
                             <GridViewColumn Header="Size" Width="50" DisplayMemberBinding="{Binding Length}" />
                         </GridView>
                     </ListView.View>
                 </ListView>
+            </Grid>
+            <Grid Grid.Column="1">
                 <ListView Margin="5,0,0,0" Name="lvUsers1">
                     <ListView.View>
 
                         <GridView>
                             <GridViewColumn Header="Line #" Width="50" DisplayMemberBinding="{Binding LineNumber}" />
-                            <GridViewColumn Width="600">
+                            <GridViewColumn>
                                 <GridViewColumnHeader Content="Text"/>
                                 <GridViewColumn.CellTemplate>
                                     <DataTemplate>
@@ -61,7 +69,7 @@
                         </GridView>
                     </ListView.View>
                 </ListView>
-            </StackPanel>
+            </Grid>
         </Grid>
     </Grid>
 </Window>
