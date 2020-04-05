@@ -59,6 +59,10 @@ namespace SearchFast
             {
                 return Enumerable.Empty<string>();
             }
+            catch (FileNotFoundException ex)
+            {
+                return Enumerable.Empty<string>();
+            }
             catch (IOException ex)
             {
                 return Enumerable.Empty<string>();

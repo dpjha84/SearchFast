@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
@@ -77,32 +78,46 @@ namespace SearchFast
 
             else
             {
-                int index = text.IndexOf(highlightPhrase, (tb.IsCaseSensitive) ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase);
-
                 tb.Inlines.Clear();
-
-                if (index < 0) //if highlightPhrase doesn't exist in text
-                    tb.Inlines.Add(text); //add text, with no background highlighting, to tb.Inlines
-
-                else
+                int prev = 0;
+                foreach (var index in text.AllIndexesOf(highlightPhrase, (tb.IsCaseSensitive) ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase))
                 {
-                    if (index > 0) //if highlightPhrase occurs after start of text
-                        tb.Inlines.Add(text.Substring(0, index)); //add the text that exists before highlightPhrase, with no background highlighting, to tb.Inlines
+                    if (index < 0) //if highlightPhrase doesn't exist in text
+                        tb.Inlines.Add(text); //add text, with no background highlighting, to tb.Inlines
 
-                    //add the highlightPhrase, using substring to get the casing as it appears in text, with a background, to tb.Inlines
-                    tb.Inlines.Add(new Run(text.Substring(index, highlightPhrase.Length))
+                    else
                     {
-                        Background = tb.HighlightBrush
-                    });
+                        if (index > 0) //if highlightPhrase occurs after start of text
+                            tb.Inlines.Add(text.Substring(prev, index-prev)); //add the text that exists before highlightPhrase, with no background highlighting, to tb.Inlines
 
-                    index += highlightPhrase.Length; //move index to the end of the matched highlightPhrase
-
-                    if (index < text.Length) //if the end of the matched highlightPhrase occurs before the end of text
-                        tb.Inlines.Add(text.Substring(index)); //add the text that exists after highlightPhrase, with no background highlighting, to tb.Inlines
+                        //add the highlightPhrase, using substring to get the casing as it appears in text, with a background, to tb.Inlines
+                        tb.Inlines.Add(new Run(text.Substring(index, highlightPhrase.Length))
+                        {
+                            Background = tb.HighlightBrush
+                        });
+                        prev = index + highlightPhrase.Length;
+                    }
                 }
+                if (prev < text.Length) //if the end of the matched highlightPhrase occurs before the end of text
+                    tb.Inlines.Add(text.Substring(prev)); //add the text that exists after highlightPhrase, with no background highlighting, to tb.Inlines
             }
         }
-
         #endregion
+    }
+
+    public static class StringExtensions
+    {
+        public static IEnumerable<int> AllIndexesOf(this string str, string value, StringComparison comparison)
+        {
+            if (String.IsNullOrEmpty(value))
+                throw new ArgumentException("the string to find may not be empty", "value");
+            for (int index = 0; ; index += value.Length)
+            {
+                index = str.IndexOf(value, index, comparison);
+                if (index == -1)
+                    break;
+                yield return index;
+            }
+        }
     }
 }

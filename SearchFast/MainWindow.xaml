@@ -16,6 +16,7 @@
                 <StackPanel Orientation="Horizontal" Margin="5">
                     <Label Name="lblFileName" Content="File Name:" Width="100" />
                     <TextBox x:Name="textBox" Text="" Width="400" Margin="10,0,0,0" />
+                    <Button Name="btnQuestion" Width="20" Content="?" Click="BtnQuestion_Click" Margin="10,0,0,0" />
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Margin="5">
                     <Label Name="lblContainingText" Content="Containing Text:" Width="100" />
@@ -25,12 +26,14 @@
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Margin="5">
                     <Label Name="lblLookIn" Content="Look in:" Width="100" />
-                    <TextBox x:Name="textBox2" Text="C:\" Width="400" Margin="10,0,0,0" />
-                    <Button Name="btnOpenFolder" Click="btnOpenFolder_Click" Margin="10,0,0,0">Browse...</Button>
+                    <TextBox x:Name="textBox2" Text="E:\Test" Width="400" Margin="10,0,0,0" />
+                    <Label Name="lblSubfolders" Content="Subfolders" />
+                    <CheckBox x:Name="chkSubfolders" IsChecked="True" VerticalAlignment="Center" />
+                    <Button Name="btnOpenFolder" Click="BtnOpenFolder_Click" Margin="10,0,0,0">Browse...</Button>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Margin="5">
-                    <Button x:Name="button" IsDefault="True" Content="Start" Click="button_Click" Margin="30,0,0,0" Width="50"/>
-                    <Button x:Name="btnStop" Content="Cancel" Click="btnStop_Click" Margin="10,0,0,0" Width="50"/>
+                    <Button x:Name="button" IsDefault="True" Content="Start" Click="BtnStart_Click" Margin="30,0,0,0" Width="50"/>
+                    <Button x:Name="btnStop" Content="Cancel" Click="BtnStop_Click" Margin="10,0,0,0" Width="50"/>
                     <TextBlock x:Name="statusLebel" Text="" FontWeight="Bold" Foreground="Green" Margin="30,0,0,0"/>
                     <TextBlock x:Name="timeTakenLebel" FontWeight="Bold" Text="" Foreground="Green" Margin="30,0,0,0"/>
                 </StackPanel>
@@ -42,7 +45,7 @@
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
             <Grid Grid.Column="0">
-                <ListView Name="lvUsers">
+                <ListView Name="lvFiles" GridViewColumnHeader.Click="GridViewColumnHeaderClickedHandler">
                     <ListView.View>
                         <GridView>
                             <GridViewColumn Header="Name" Width="200" DisplayMemberBinding="{Binding Name}" />
@@ -53,16 +56,15 @@
                 </ListView>
             </Grid>
             <Grid Grid.Column="1">
-                <ListView Margin="5,0,0,0" Name="lvUsers1">
+                <ListView Margin="5,0,0,0" Name="lvFileDetails">
                     <ListView.View>
-
                         <GridView>
                             <GridViewColumn Header="Line #" Width="50" DisplayMemberBinding="{Binding LineNumber}" />
                             <GridViewColumn>
-                                <GridViewColumnHeader Content="Text"/>
+                                <GridViewColumnHeader Width="400" Content="Text"/>
                                 <GridViewColumn.CellTemplate>
                                     <DataTemplate>
-                                        <local:HighlightTextBlock Text="{Binding Path=Text}" HighlightPhrase="{Binding ElementName=textBox1, Path=Text}" HighlightBrush="Orange" />
+                                        <local:HighlightTextBlock IsCaseSensitive="{Binding MatchCase}" Text="{Binding Path=Text}" HighlightPhrase="{Binding ElementName=textBox1, Path=Text}" HighlightBrush="Orange" />
                                     </DataTemplate>
                                 </GridViewColumn.CellTemplate>
                             </GridViewColumn>

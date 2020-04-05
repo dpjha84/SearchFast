@@ -1,18 +1,18 @@
-﻿using Microsoft.Win32;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Forms;
-using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
+using Binding = System.Windows.Data.Binding;
 
 namespace SearchFast
 {
@@ -22,53 +22,43 @@ namespace SearchFast
         string searchText = null;
         string fileNames = null;
         bool? matchCase = false;
-        ObservableCollection<FileInfo> fileList = new ObservableCollection<FileInfo>();
-        ObservableCollection<FileSearchResult> fileDetailList = new ObservableCollection<FileSearchResult>();
-        ManualResetEventSlim pauseEvent = new ManualResetEventSlim(false);
-        ManualResetEventSlim stopEvent = new ManualResetEventSlim(false);
-        ManualResetEventSlim startEvent = new ManualResetEventSlim(false);
+        SearchOption searchOption;
+        static Guid currentRunId;
+        private long? lowestBreakIndex = null;
+        bool paused, terminated, processing;
+        GridViewColumnHeader _lastHeaderClicked = null;
+        ListSortDirection _lastDirection = ListSortDirection.Ascending;
+        readonly ObservableCollection<FileInfo> fileList = new ObservableCollection<FileInfo>();
+        readonly ObservableCollection<FileSearchResult> fileDetailList = new ObservableCollection<FileSearchResult>();
 
         public MainWindow()
         {
             InitializeComponent();
-            lvUsers.ItemsSource = fileList;
-            lvUsers1.ItemsSource = fileDetailList;
-            lvUsers.MouseDoubleClick += LvUsers_MouseDoubleClick;
-            lvUsers.SelectionChanged += LvUsers_SelectionChanged;
+            lvFiles.ItemsSource = fileList;
+            lvFileDetails.ItemsSource = fileDetailList;
+            lvFiles.MouseDoubleClick += LvFiles_MouseDoubleClick;
+            lvFiles.SelectionChanged += LvFiles_SelectionChanged;
         }
 
-        private void LvUsers_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void LvFiles_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             fileDetailList.Clear();
-
-            //List<Person> listPerson = new List<Person>();
-            //listPerson.Add(new Person("John", "Doe"));
-            //listPerson.Add(new Person("James", "Test"));
-            //listPerson.Add(new Person("Tester", "Black"));
-            //listPerson.Add(new Person("Joan", "Down"));
-            //listPerson.Add(new Person("Cole", "Wu"));
-            //listPerson.Add(new Person("Test", "Liu"));
-            //listPerson.Add(new Person("Jack", "Zhao"));
-            //listPerson.Add(new Person("Coach", "Tang"));
-            //listPerson.Add(new Person("Rose", "Chou"));
-            //lvUsers1.ItemsSource = listPerson;
-
-            var fileInfo = lvUsers.SelectedItem as FileInfo;
+            var fileInfo = lvFiles.SelectedItem as FileInfo;
             if (fileInfo != null)
             {
-                if (fileInfo.Name.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0)
-                    fileDetailList.Add(new FileSearchResult { Text = fileInfo.FullName });
+                if (Contains(fileInfo.Name, searchText, matchCase))
+                    fileDetailList.Add(new FileSearchResult { Text = fileInfo.FullName, MatchCase = matchCase.HasValue ? (bool)matchCase.Value : false });
                 int count = 0;
                 foreach (var line in File.ReadAllLines(fileInfo.FullName))
                 {
                     count++;
-                    if (line.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0)
-                        fileDetailList.Add(new FileSearchResult { LineNumber = count.ToString(), Text = line });
+                    if (Contains(line, searchText, matchCase))
+                        fileDetailList.Add(new FileSearchResult { LineNumber = count.ToString(), Text = line, MatchCase = matchCase.HasValue ? (bool)matchCase.Value : false });
                 }
             }
         }
 
-        private void LvUsers_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        private void LvFiles_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
             var fileInfo = ((FrameworkElement)e.OriginalSource).DataContext as FileInfo;
             if (fileInfo != null)
@@ -76,13 +66,12 @@ namespace SearchFast
                 Process.Start(fileInfo.FullName);
             }
         }
-        static Guid currentRunId;
-        private void button_Click(object sender, RoutedEventArgs e)
+
+        private void BtnStart_Click(object sender, RoutedEventArgs e)
         {
             fileNames = textBox.Text;
             dirName = textBox2.Text;
             searchText = textBox1.Text;
-            matchCase = chkMatchcase.IsChecked;
             timeTakenLebel.Text = "";
             if (string.IsNullOrWhiteSpace(dirName))
             {
@@ -93,57 +82,35 @@ namespace SearchFast
             statusLebel.Foreground = new SolidColorBrush(Colors.Green);
             statusLebel.Text = "Searching...";
 
-            if (startEvent.IsSet && !pauseEvent.IsSet)
+            if (button.Content.ToString() == "Pause")
             {
-                button.Content = "Resume";
+                paused = true;
+                terminated = false;
+                processing = false;
                 statusLebel.Text = "Search paused";
-                stopEvent.Reset();
-                startEvent.Reset();
-                pauseEvent.Set();
-                
+                button.Content = "Resume";
             }
-            else if (!startEvent.IsSet)
+            else
             {
-                button.Content = "Pause";
-                stopEvent.Reset();
-                startEvent.Set();
-                if (!pauseEvent.IsSet)
+                if (button.Content.ToString() == "Start")
                 {
-                    fileList.Clear();
+                    searchOption = chkSubfolders.IsChecked.Value ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
+                    matchCase = chkMatchcase.IsChecked;
                     currentRunId = Guid.NewGuid();
-                    Task.Run(() => DoWork(currentRunId));
+                    fileList.Clear();
                 }
-                pauseEvent.Reset();                
+                paused = false;
+                terminated = false;
+                processing = true;
+                button.Content = "Pause";
+                Task.Factory.StartNew(() => StartProcess(currentRunId));
             }
         }
 
-        private void btnStop_Click(object sender, RoutedEventArgs e)
-        {
-            statusLebel.Text = "Search canceled";
-            timeTakenLebel.Text = "";
-            UpdateStopEvents();
-        }
-
-        void UpdateStopEvents()
-        {
-            stopEvent.Set();
-            if (!startEvent.IsSet)
-                startEvent.Set();            
-            startEvent.Reset();
-            pauseEvent.Reset();
-            
-            Dispatcher.Invoke(() =>
-            {
-                button.Content = "Start";
-                //label.Content = "0";
-            }
-            );
-        }
-
-        private void DoWork(Guid runId)
+        private void StartProcess(Guid runId)
         {
             if (!runId.Equals(currentRunId)) return;
-            int sz = 0;
+            int size = 0;
             var exclusionList = new List<string>();
             var extList = new HashSet<string>();
             var staticFiles = new HashSet<string>();
@@ -163,88 +130,147 @@ namespace SearchFast
                 else
                     staticFiles.Add(trimmedFileType);
             }
-            if(extList.Count == 0 && staticFiles.Count == 0) extList.Add(".*");
-            Stopwatch sw = new Stopwatch();
-            sw.Start();
-            //var files = SafeFileEnumerator.EnumerateFiles(dirName, SearchOption.AllDirectories, extList, exclusionList, sz, staticFiles);
-            //Parallel.ForEach(files, new ParallelOptions { MaxDegreeOfParallelism = 4 }, (file1, state) =>
-            foreach (var file1 in SafeFileEnumerator.EnumerateFiles(dirName, SearchOption.AllDirectories, extList, exclusionList, sz, staticFiles))
+            if (extList.Count == 0 && staticFiles.Count == 0) extList.Add(".*");
+
+            var files = SafeFileEnumerator.EnumerateFiles(dirName, searchOption, extList, exclusionList, size, staticFiles);
+            int skip = lowestBreakIndex.HasValue ? (int)lowestBreakIndex.Value : 0;
+            Stopwatch sw = Stopwatch.StartNew();
+            ParallelLoopResult result = Parallel.ForEach(files.Skip(skip), new ParallelOptions() { MaxDegreeOfParallelism = 4 }, (file1, state) =>
             {
-                if (!runId.Equals(currentRunId)) return;//state.Stop();
-                startEvent.Wait();
-                if (stopEvent.IsSet) return;//state.Stop();
-                try
-                {
-                    if (matchCase.Value)
+                if (paused)
+                    state.Break();
+                else if (terminated)
+                    state.Stop();
+                else
+                    try
                     {
-                        if (Path.GetFileName(file1).Contains(searchText)) AddToFileList(runId, file1);
+                        TryMatch(runId, file1, Path.GetFileName(file1), searchText, matchCase);
+                        foreach (var line in File.ReadLines(file1))
+                        {
+                            if (!runId.Equals(currentRunId)) return;
+                            if (paused)
+                                state.Break();
+                            else if (terminated)
+                                state.Stop();
+                            else
+                            {
+                                if (TryMatch(runId, file1, line, searchText, matchCase))
+                                    break;
+                            }
+                        }
+                    }
+                    catch (IOException ex)
+                    {
+                    }
+                    catch (UnauthorizedAccessException ex)
+                    {
+                    }
+            });
+            lowestBreakIndex = result.LowestBreakIteration;
+            if (!lowestBreakIndex.HasValue)
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    timeTakenLebel.Text = $"Time: {sw.Elapsed.TotalSeconds}s";
+                    statusLebel.Text = $"{fileList.Count} file(s).";
+                    button.Content = "Start";
+                });
+            }
+            processing = paused = terminated = false;
+        }
+
+        private void BtnStop_Click(object sender, RoutedEventArgs e)
+        {
+            terminated = true;
+            processing = false;
+            paused = false;
+            lowestBreakIndex = null;
+            button.Content = "Start";
+            statusLebel.Text = "Search canceled";
+            timeTakenLebel.Text = "";
+        }
+
+        private bool TryMatch(Guid runId, string filePath, string text, string searchText, bool? matchCase)
+        {
+            bool found = false;
+            if (Contains(text, searchText, matchCase))
+            {
+                found = true;
+                if (runId.Equals(currentRunId))
+                {
+                    var file1 = new FileInfo(filePath);
+                    Dispatcher.Invoke(() =>
+                    {
+                        if (runId.Equals(currentRunId))
+                        {
+                            fileList.Add(file1);
+                        }
+                    });
+                }
+            }
+            return found;
+        }
+
+        private void GridViewColumnHeaderClickedHandler(object sender, RoutedEventArgs e)
+        {
+            var headerClicked = e.OriginalSource as GridViewColumnHeader;
+            ListSortDirection direction;
+
+            if (headerClicked != null)
+            {
+                if (headerClicked.Role != GridViewColumnHeaderRole.Padding)
+                {
+                    if (headerClicked != _lastHeaderClicked)
+                    {
+                        direction = ListSortDirection.Ascending;
                     }
                     else
                     {
-                        if (Path.GetFileName(file1).IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0) AddToFileList(runId, file1);
-                    }
-
-
-                    foreach (var line in File.ReadLines(file1))
-                    {
-                        if (!runId.Equals(currentRunId)) return;//state.Stop();
-                        startEvent.Wait();
-                        if (stopEvent.IsSet) return;// state.Stop();
-                        if (matchCase.Value)
+                        if (_lastDirection == ListSortDirection.Ascending)
                         {
-                            if (line.Contains(searchText))
-                            {
-                                AddToFileList(runId, file1);
-                                break;
-                            }
+                            direction = ListSortDirection.Descending;
                         }
                         else
                         {
-                            if (line.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0)
-                            {
-                                AddToFileList(runId, file1);
-                                break;
-                            }
+                            direction = ListSortDirection.Ascending;
                         }
                     }
-                }
-                catch (IOException ex)
-                {
-                }
-                catch (UnauthorizedAccessException ex)
-                {
+                    string header = ((Binding)headerClicked.Column.DisplayMemberBinding).Path.Path;
+                    Sort(header, direction);
+
+                    _lastHeaderClicked = headerClicked;
+                    _lastDirection = direction;
                 }
             }
-            //);
-            if (!stopEvent.IsSet)
-            {
-                Dispatcher.Invoke(() => { timeTakenLebel.Text = $"Time: {sw.Elapsed.TotalSeconds}s"; });
-                Dispatcher.Invoke(() => statusLebel.Text = $"{fileList.Count} record(s).");
-            }
-            UpdateStopEvents();
         }
 
-        private void AddToFileList(Guid runId, string file)
+        private void Sort(string sortBy, ListSortDirection direction)
         {
-            if (runId.Equals(currentRunId))
-            {
-                var file1 = new FileInfo(file);
-                Dispatcher.Invoke(() =>
-                {
-                    if (runId.Equals(currentRunId))
-                    {
-                        fileList.Add(file1);
-                    }
-                });
-            }
+            ICollectionView dataView = CollectionViewSource.GetDefaultView(lvFiles.ItemsSource);
+            dataView.SortDescriptions.Clear();
+            SortDescription sd = new SortDescription(sortBy, direction);
+            dataView.SortDescriptions.Add(sd);
+            dataView.Refresh();
         }
 
-        private void btnOpenFolder_Click(object sender, RoutedEventArgs e)
+        private void BtnQuestion_Click(object sender, RoutedEventArgs e)
+        {
+            new InfoWindow().ShowDialog();
+        }
+
+        private bool Contains(string source, string searchText, bool? matchCase)
+        {
+            return matchCase.Value ?
+                source.IndexOf(searchText) >= 0 :
+                source.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private void BtnOpenFolder_Click(object sender, RoutedEventArgs e)
         {
             using (var dialog = new FolderBrowserDialog())
             {
                 DialogResult result = dialog.ShowDialog();
-                if(result == System.Windows.Forms.DialogResult.OK)
+                if (result == System.Windows.Forms.DialogResult.OK)
                     textBox2.Text = dialog.SelectedPath;
             }
         }
@@ -255,18 +281,7 @@ namespace SearchFast
         public string LineNumber { get; set; }
 
         public string Text { get; set; }
-    }
 
-    class Person
-    {
-        public string FirstName { get; set; }
-
-        public string LastName { get; set; }
-
-        public Person(string fname, string lname)
-        {
-            FirstName = fname;
-            LastName = lname;
-        }
+        public bool MatchCase { get; set; }
     }
 }
