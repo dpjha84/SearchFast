@@ -49,7 +49,7 @@ namespace SearchFast
                 return dirFiles.Concat(Directory.EnumerateFiles(path, "*.*")
                     .Where(file => (MatchingExtension(file, extList)
                         && new FileInfo(file).Length / (1024 * 1024) >= minSize)
-                        || fileNames.Contains(Path.GetFileName(file), StringComparer.OrdinalIgnoreCase)));
+                        || fileNames.Contains(Path.GetFileName(file), new MyEqualityComparer())));
             }
             catch (UnauthorizedAccessException ex)
             {
@@ -71,6 +71,19 @@ namespace SearchFast
         static bool MatchingExtension(string file, HashSet<string> extList)
         {
             return extList.Count == 0 ? false : extList.Contains(".*") ? true : extList.Any(x => file.EndsWith(x, StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
+    public class MyEqualityComparer : IEqualityComparer<string>
+    {
+        public bool Equals(string x, string y)
+        {
+            return y.IndexOf(x, StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        public int GetHashCode(string obj)
+        {
+            return obj.GetHashCode();
         }
     }
 }

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Data;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -9,8 +10,11 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
+using System.Windows.Documents;
 using System.Windows.Forms;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows.Navigation;
 using System.Windows.Threading;
 using Binding = System.Windows.Data.Binding;
 
@@ -18,6 +22,7 @@ namespace SearchFast
 {
     public partial class MainWindow : Window
     {
+        List<string> dirNames = new List<string>();
         string dirName = null;
         string searchText = null;
         string fileNames = null;
@@ -28,7 +33,7 @@ namespace SearchFast
         bool paused, terminated, processing;
         GridViewColumnHeader _lastHeaderClicked = null;
         ListSortDirection _lastDirection = ListSortDirection.Ascending;
-        readonly ObservableCollection<FileInfo> fileList = new ObservableCollection<FileInfo>();
+        readonly ObservableCollection<FileInfoWrapper> fileList = new ObservableCollection<FileInfoWrapper>();
         readonly ObservableCollection<FileSearchResult> fileDetailList = new ObservableCollection<FileSearchResult>();
 
         public MainWindow()
@@ -38,12 +43,13 @@ namespace SearchFast
             lvFileDetails.ItemsSource = fileDetailList;
             lvFiles.MouseDoubleClick += LvFiles_MouseDoubleClick;
             lvFiles.SelectionChanged += LvFiles_SelectionChanged;
+            textBox2.Text = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
         }
 
         private void LvFiles_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             fileDetailList.Clear();
-            var fileInfo = lvFiles.SelectedItem as FileInfo;
+            var fileInfo = lvFiles.SelectedItem as FileInfoWrapper;
             if (fileInfo != null)
             {
                 if (Contains(fileInfo.Name, searchText, matchCase))
@@ -60,7 +66,7 @@ namespace SearchFast
 
         private void LvFiles_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
-            var fileInfo = ((FrameworkElement)e.OriginalSource).DataContext as FileInfo;
+            var fileInfo = ((FrameworkElement)e.OriginalSource).DataContext as FileInfoWrapper;
             if (fileInfo != null)
             {
                 Process.Start(fileInfo.FullName);
@@ -69,25 +75,39 @@ namespace SearchFast
 
         private void BtnStart_Click(object sender, RoutedEventArgs e)
         {
+            dirNames.Clear();
+            ResetLabels(statusLabel, fileCountLabel, timeTakenLabel);
             fileNames = textBox.Text;
             dirName = textBox2.Text;
             searchText = textBox1.Text;
-            timeTakenLebel.Text = "";
+            timeTakenLabel.Text = "";
+            var drives = DriveInfo.GetDrives();
             if (string.IsNullOrWhiteSpace(dirName))
             {
-                statusLebel.Text = "Look in directory is required.";
-                statusLebel.Foreground = new SolidColorBrush(Colors.Red);
-                return;
+                dirNames = DriveInfo.GetDrives().Where(x => x.IsReady).Select(x => x.Name).ToList();
             }
-            statusLebel.Foreground = new SolidColorBrush(Colors.Green);
-            statusLebel.Text = "Searching...";
-
+            else
+            {
+                foreach (var dir in dirName.Split(new char[] { ';' }, StringSplitOptions.RemoveEmptyEntries))
+                {
+                    if (Directory.Exists(dir))
+                        dirNames.Add(dir);
+                }
+                if (dirNames.Count == 0)
+                {
+                    statusLabel.Text = "Invalid Look in directory.";
+                    statusLabel.Foreground = new SolidColorBrush(Colors.Red);
+                    return;
+                }
+            }
+            statusLabel.Foreground = new SolidColorBrush(Colors.Green);
+            statusLabel.Text = "Searching...";
             if (button.Content.ToString() == "Pause")
             {
                 paused = true;
                 terminated = false;
                 processing = false;
-                statusLebel.Text = "Search paused";
+                statusLabel.Text = "Search paused";
                 button.Content = "Resume";
             }
             else
@@ -104,6 +124,14 @@ namespace SearchFast
                 processing = true;
                 button.Content = "Pause";
                 Task.Factory.StartNew(() => StartProcess(currentRunId));
+            }
+        }
+
+        private void ResetLabels(params TextBlock[] labels)
+        {
+            foreach (var item in labels)
+            {
+                item.Text = "";
             }
         }
 
@@ -132,7 +160,12 @@ namespace SearchFast
             }
             if (extList.Count == 0 && staticFiles.Count == 0) extList.Add(".*");
 
-            var files = SafeFileEnumerator.EnumerateFiles(dirName, searchOption, extList, exclusionList, size, staticFiles);
+            var files = Enumerable.Empty<string>();
+            foreach (var dir in dirNames)
+            {
+                files = files.Concat(SafeFileEnumerator.EnumerateFiles(dir, searchOption, extList, exclusionList, size, staticFiles));
+            }
+            
             int skip = lowestBreakIndex.HasValue ? (int)lowestBreakIndex.Value : 0;
             Stopwatch sw = Stopwatch.StartNew();
             ParallelLoopResult result = Parallel.ForEach(files.Skip(skip), new ParallelOptions() { MaxDegreeOfParallelism = 4 }, (file1, state) =>
@@ -144,18 +177,20 @@ namespace SearchFast
                 else
                     try
                     {
-                        TryMatch(runId, file1, Path.GetFileName(file1), searchText, matchCase);
-                        foreach (var line in File.ReadLines(file1))
+                        if (!TryMatch(runId, file1, Path.GetFileName(file1), searchText, matchCase))
                         {
-                            if (!runId.Equals(currentRunId)) return;
-                            if (paused)
-                                state.Break();
-                            else if (terminated)
-                                state.Stop();
-                            else
+                            foreach (var line in File.ReadLines(file1))
                             {
-                                if (TryMatch(runId, file1, line, searchText, matchCase))
-                                    break;
+                                if (!runId.Equals(currentRunId)) return;
+                                if (paused)
+                                    state.Break();
+                                else if (terminated)
+                                    state.Stop();
+                                else
+                                {
+                                    if (TryMatch(runId, file1, line, searchText, matchCase))
+                                        break;
+                                }
                             }
                         }
                     }
@@ -171,8 +206,9 @@ namespace SearchFast
             {
                 Dispatcher.Invoke(() =>
                 {
-                    timeTakenLebel.Text = $"Time: {sw.Elapsed.TotalSeconds}s";
-                    statusLebel.Text = $"{fileList.Count} file(s).";
+                    statusLabel.Text = terminated ? "Search canceled" : "Search completed";
+                    timeTakenLabel.Text = $"Time: {sw.Elapsed.TotalSeconds}s";
+                    fileCountLabel.Text = $"{fileList.Count} file(s).";
                     button.Content = "Start";
                 });
             }
@@ -181,13 +217,14 @@ namespace SearchFast
 
         private void BtnStop_Click(object sender, RoutedEventArgs e)
         {
+            ResetLabels(statusLabel, timeTakenLabel, fileCountLabel);
             terminated = true;
             processing = false;
             paused = false;
             lowestBreakIndex = null;
             button.Content = "Start";
-            statusLebel.Text = "Search canceled";
-            timeTakenLebel.Text = "";
+            statusLabel.Text = "Search canceled";
+            timeTakenLabel.Text = "";
         }
 
         private bool TryMatch(Guid runId, string filePath, string text, string searchText, bool? matchCase)
@@ -198,7 +235,7 @@ namespace SearchFast
                 found = true;
                 if (runId.Equals(currentRunId))
                 {
-                    var file1 = new FileInfo(filePath);
+                    var file1 = new FileInfoWrapper(filePath);
                     Dispatcher.Invoke(() =>
                     {
                         if (runId.Equals(currentRunId))
@@ -236,6 +273,7 @@ namespace SearchFast
                         }
                     }
                     string header = ((Binding)headerClicked.Column.DisplayMemberBinding).Path.Path;
+                    if (header == "Size") header = "Length";
                     Sort(header, direction);
 
                     _lastHeaderClicked = headerClicked;
@@ -274,6 +312,93 @@ namespace SearchFast
                     textBox2.Text = dialog.SelectedPath;
             }
         }
+
+        private void BtnExport_Click(object sender, RoutedEventArgs e)
+        {
+            ResetLabels(statusLabel, timeTakenLabel, fileCountLabel);
+            SaveFileDialog saveFileDialog = new SaveFileDialog
+            {
+                FileName = "SearchResults.csv",
+                InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                Filter = "Comma separated (CSV) (*.csv)|*.csv"
+            };
+            var result = saveFileDialog.ShowDialog();
+            if (result == System.Windows.Forms.DialogResult.OK)
+            {
+                try
+                {
+                    CreateCSVFile(ToDataTable(lvFiles), saveFileDialog.FileName);
+                    UpdateStatus("View exported file", saveFileDialog.FileName);
+                }
+                catch (Exception ex)
+                {
+                    if (!Directory.Exists("Logs")) Directory.CreateDirectory("Logs");
+                    var errorFileName = $"Logs\\ErrorLog_{DateTime.Now.ToString().Replace(":", "-")}.txt";
+                    File.WriteAllText(errorFileName, ex.ToString());
+                    UpdateStatus("Error in Export", Path.Combine(Environment.CurrentDirectory, errorFileName));
+                }
+            }
+        }
+
+        private void UpdateStatus(string text, string target)
+        {
+            var hyperlink = new Hyperlink(new Run(text)) { NavigateUri = new Uri(target) };
+            hyperlink.RequestNavigate += new RequestNavigateEventHandler(Hyperlink_RequestNavigate);
+            statusLabel.Inlines.Clear();
+            statusLabel.Inlines.Add(hyperlink);
+        }
+
+        private void Hyperlink_RequestNavigate(object sender, RequestNavigateEventArgs e)
+        {
+            Process.Start(e.Uri.AbsoluteUri);
+        }
+
+        private DataTable ToDataTable(System.Windows.Controls.ListView lv)
+        {
+            DataTable table = new DataTable();
+            table.Columns.Add("Name");
+            table.Columns.Add("Location");
+            table.Columns.Add("Size");
+            foreach (var item in lv.Items)
+            {
+                var file = item as FileInfoWrapper;
+                table.Rows.Add(file.Name, file.DirectoryName, file.Size);
+            }
+            return table;
+        }
+
+        public void CreateCSVFile(DataTable dt, string strFilePath)
+        {
+            using (StreamWriter sw = new StreamWriter(strFilePath, false))
+            {
+                int iColCount = dt.Columns.Count;
+                for (int i = 0; i < iColCount; i++)
+                {
+                    sw.Write(dt.Columns[i]);
+                    if (i < iColCount - 1)
+                    {
+                        sw.Write(",");
+                    }
+                }
+                sw.Write(sw.NewLine);
+
+                foreach (DataRow dr in dt.Rows)
+                {
+                    for (int i = 0; i < iColCount; i++)
+                    {
+                        if (!Convert.IsDBNull(dr[i]))
+                        {
+                            sw.Write(dr[i].ToString());
+                        }
+                        if (i < iColCount - 1)
+                        {
+                            sw.Write(",");
+                        }
+                    }
+                    sw.Write(sw.NewLine);
+                }
+            }
+        }
     }
 
     public class FileSearchResult
@@ -283,5 +408,39 @@ namespace SearchFast
         public string Text { get; set; }
 
         public bool MatchCase { get; set; }
+    }
+
+    public class FileInfoWrapper
+    {
+        readonly FileInfo fileInfo;
+        public FileInfoWrapper(string filePath)
+        {
+            fileInfo = new FileInfo(filePath);
+        }
+
+        public string Name => fileInfo.Name;
+
+        public string FullName => fileInfo.FullName;
+
+        public string DirectoryName => fileInfo.DirectoryName;
+
+        public long Length => fileInfo.Length;
+
+        public string Size => $"{Math.Ceiling((double)Length / 1024)} KB";
+
+        public BitmapSource Icon
+        {
+            get
+            {
+                using (var sysicon = System.Drawing.Icon.ExtractAssociatedIcon(fileInfo.FullName))
+                {
+                    var bmpSrc = System.Windows.Interop.Imaging.CreateBitmapSourceFromHIcon(
+                            sysicon.Handle,
+                            Int32Rect.Empty,
+                            BitmapSizeOptions.FromEmptyOptions());
+                    return bmpSrc;
+                }                
+            }
+        }
     }
 }

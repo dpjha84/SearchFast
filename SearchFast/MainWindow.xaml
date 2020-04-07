@@ -5,17 +5,30 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:SearchFast"
         mc:Ignorable="d"
-        Title="SearchFast" Height="350" Width="525" WindowState="Maximized">
+        Title="SearchFast" Height="350" Width="525" WindowState="Maximized" Icon="images\quick_scan_512.png">
+    <Window.Resources>
+        <Style x:Key="alternatingListViewItemStyle" TargetType="{x:Type ListViewItem}">
+            <Style.Triggers>
+                <Trigger Property="ItemsControl.AlternationIndex" Value="1">
+                    <Setter Property="Background" Value="#EEE"></Setter>
+                </Trigger>
+                <Trigger Property="ItemsControl.AlternationIndex" Value="2">
+                    <Setter Property="Background" Value="White"></Setter>
+                </Trigger>
+            </Style.Triggers>
+            <Setter Property="Height" Value="30" />
+        </Style>
+    </Window.Resources>
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition/>
         </Grid.RowDefinitions>
-        <Border Margin="10,0,10,0" Grid.Row="0" BorderBrush="Gray" Background="LightGray" BorderThickness="1">
+        <Border Margin="5,0,5,0" Grid.Row="0" BorderBrush="Gray" Background="LightGray" BorderThickness="1">
             <StackPanel Margin="5">
                 <StackPanel Orientation="Horizontal" Margin="5">
                     <Label Name="lblFileName" Content="File Name:" Width="100" />
-                    <TextBox x:Name="textBox" Text="" Width="400" Margin="10,0,0,0" />
+                    <TextBox x:Name="textBox" Text="*.txt" Width="400" Margin="10,0,0,0" />
                     <Button Name="btnQuestion" Width="20" Content="?" Click="BtnQuestion_Click" Margin="10,0,0,0" />
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Margin="5">
@@ -26,7 +39,7 @@
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Margin="5">
                     <Label Name="lblLookIn" Content="Look in:" Width="100" />
-                    <TextBox x:Name="textBox2" Text="E:\Test" Width="400" Margin="10,0,0,0" />
+                    <TextBox x:Name="textBox2" Text="E:\" Width="400" Margin="10,0,0,0" />
                     <Label Name="lblSubfolders" Content="Subfolders" />
                     <CheckBox x:Name="chkSubfolders" IsChecked="True" VerticalAlignment="Center" />
                     <Button Name="btnOpenFolder" Click="BtnOpenFolder_Click" Margin="10,0,0,0">Browse...</Button>
@@ -34,29 +47,43 @@
                 <StackPanel Orientation="Horizontal" Margin="5">
                     <Button x:Name="button" IsDefault="True" Content="Start" Click="BtnStart_Click" Margin="30,0,0,0" Width="50"/>
                     <Button x:Name="btnStop" Content="Cancel" Click="BtnStop_Click" Margin="10,0,0,0" Width="50"/>
-                    <TextBlock x:Name="statusLebel" Text="" FontWeight="Bold" Foreground="Green" Margin="30,0,0,0"/>
-                    <TextBlock x:Name="timeTakenLebel" FontWeight="Bold" Text="" Foreground="Green" Margin="30,0,0,0"/>
+                    <Button x:Name="btnExport" Content="Export to CSV" Click="BtnExport_Click" Margin="10,0,0,0" Width="100"/>
+                    <TextBlock x:Name="statusLabel" TextWrapping="Wrap" Text="" FontWeight="Bold" Foreground="Green" Margin="30,0,0,0"/>
+                    <TextBlock x:Name="fileCountLabel" FontWeight="Bold" Text="" Foreground="Green" Margin="30,0,0,0"/>
+                    <TextBlock x:Name="timeTakenLabel" FontWeight="Bold" Text="" Foreground="Green" Margin="30,0,0,0"/>
                 </StackPanel>
             </StackPanel>
         </Border>
-        <Grid Margin="10,5,10,5" Name="grid1" Background="Transparent" Grid.Row="1">
+        <Grid Margin="5,5,5,5" Name="grid1" Background="Transparent" Grid.Row="1">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="5" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
             <Grid Grid.Column="0">
-                <ListView Name="lvFiles" GridViewColumnHeader.Click="GridViewColumnHeaderClickedHandler">
+                <ListView Name="lvFiles" GridViewColumnHeader.Click="GridViewColumnHeaderClickedHandler" ItemContainerStyle="{StaticResource alternatingListViewItemStyle}" AlternationCount="2">
                     <ListView.View>
-                        <GridView>
+                        <GridView x:Name="gv">
+                            <GridViewColumn>
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Image Width="20" Source="{Binding Icon}" />
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+
                             <GridViewColumn Header="Name" Width="200" DisplayMemberBinding="{Binding Name}" />
                             <GridViewColumn Header="Location" Width="400" DisplayMemberBinding="{Binding DirectoryName}" />
-                            <GridViewColumn Header="Size" Width="50" DisplayMemberBinding="{Binding Length}" />
+                            <GridViewColumn Header="Size" Width="80" DisplayMemberBinding="{Binding Size}" />
+                            
+                            
                         </GridView>
                     </ListView.View>
                 </ListView>
             </Grid>
-            <Grid Grid.Column="1">
-                <ListView Margin="5,0,0,0" Name="lvFileDetails">
+            <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" Background="Transparent" />
+            <Grid Grid.Column="2">
+                <ListView Margin="0,0,0,0" Name="lvFileDetails">
                     <ListView.View>
                         <GridView>
                             <GridViewColumn Header="Line #" Width="50" DisplayMemberBinding="{Binding LineNumber}" />
