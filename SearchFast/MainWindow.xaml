@@ -16,7 +16,6 @@
                     <Setter Property="Background" Value="White"></Setter>
                 </Trigger>
             </Style.Triggers>
-            <Setter Property="Height" Value="30" />
         </Style>
     </Window.Resources>
     <Grid>
@@ -35,7 +34,7 @@
                     <Label Name="lblContainingText" Content="Containing Text:" Width="100" />
                     <TextBox x:Name="textBox1" Text="Test" Width="400" Margin="10,0,0,0" />
                     <Label Name="lblMatchCase" Content="Match case" />
-                    <CheckBox x:Name="chkMatchcase" Width="400" VerticalAlignment="Center" />
+                    <CheckBox x:Name="chkMatchcase" VerticalAlignment="Center" />
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Margin="5">
                     <Label Name="lblLookIn" Content="Look in:" Width="100" />
